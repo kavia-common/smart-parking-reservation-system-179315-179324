@@ -1,4 +1,8 @@
-// This file will export middleware as the application grows
+'use strict';
+const { verifyFirebaseAuth, requireAdmin } = require('./auth');
+
+// Centralized middleware exports
 module.exports = {
-  // Add your middleware here
+  verifyFirebaseAuth,
+  requireAdmin,
 };

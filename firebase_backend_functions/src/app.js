@@ -22,13 +22,51 @@ app.use(cors({
   credentials: true,
 }));
 app.set('trust proxy', true);
-app.use('/docs', swaggerUi.serve, (req, res, next) => {
-  const host = req.get('host');           // may or may not include port
-  let protocol = req.protocol;          // http or https
 
+// Capture raw body for Stripe webhook verification while still parsing JSON for others
+app.use((req, res, next) => {
+  if (req.originalUrl === '/payments/webhook') {
+    let data = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk) => { data += chunk; });
+    req.on('end', () => {
+      req.rawBody = data;
+      try {
+        req.body = JSON.parse(data);
+      } catch {
+        req.body = {};
+      }
+      next();
+    });
+  } else {
+    express.json()(req, res, next);
+  }
+});
+
+// OpenAPI JSON route for tooling
+app.get('/openapi.json', (req, res) => {
+  const host = req.get('host');
+  let protocol = req.protocol;
   const actualPort = req.socket.localPort;
   const hasPort = host.includes(':');
-  
+  const needsPort = !hasPort && ((protocol === 'http' && actualPort !== 80) || (protocol === 'https' && actualPort !== 443));
+  const fullHost = needsPort ? `${host}:${actualPort}` : host;
+  protocol = req.secure ? 'https' : protocol;
+
+  const dynamicSpec = {
+    ...swaggerSpec,
+    servers: [{ url: `${protocol}://${fullHost}` }],
+  };
+  res.json(dynamicSpec);
+});
+
+// Swagger UI
+app.use('/docs', swaggerUi.serve, (req, res, next) => {
+  const host = req.get('host');
+  let protocol = req.protocol;
+  const actualPort = req.socket.localPort;
+  const hasPort = host.includes(':');
+
   const needsPort =
     !hasPort &&
     ((protocol === 'http' && actualPort !== 80) ||
@@ -46,9 +84,6 @@ app.use('/docs', swaggerUi.serve, (req, res, next) => {
   };
   swaggerUi.setup(dynamicSpec)(req, res, next);
 });
-
-// Parse JSON request body
-app.use(express.json());
 
 // Mount routes
 app.use('/', routes);
