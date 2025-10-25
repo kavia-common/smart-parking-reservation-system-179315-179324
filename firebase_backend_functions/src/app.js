@@ -3,14 +3,23 @@ const express = require('express');
 const routes = require('./routes');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('../swagger');
+const { getAllowedOrigins } = require('./config/firebase');
 
 // Initialize express app
 const app = express();
 
+const allowedOrigins = getAllowedOrigins();
 app.use(cors({
-  origin: '*',
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // Allow non-browser clients
+    if (allowedOrigins.length === 0 || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }));
 app.set('trust proxy', true);
 app.use('/docs', swaggerUi.serve, (req, res, next) => {

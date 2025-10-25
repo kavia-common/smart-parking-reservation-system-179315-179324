@@ -1,0 +1,39 @@
+// Firestore Security Rules
+// Note: Backend uses Firebase Admin SDK which bypasses these rules. These rules protect client-side access
+// (e.g., if the frontend uses Firestore directly). Adjust based on your client access model.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Public read-only access to parking lots listing (metadata only)
+    match /lots/{lotId} {
+      allow read: if true;         // public can read lots
+      allow write: if false;       // no direct client writes
+    }
+
+    // Slots are read-only for clients; real-time availability is read via backend or controlled read
+    match /lots/{lotId}/slots/{slotId} {
+      allow read: if true;         // optionally expose read-only availability
+      allow write: if false;
+    }
+
+    // Bookings must not be created or modified directly from the client in this architecture
+    // to ensure server-side validation and payment checks.
+    match /bookings/{bookingId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow write: if false;
+    }
+
+    // Users profile - allow user to read their own record
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    // Admin collections - deny all client access
+    match /admin/{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
