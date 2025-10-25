@@ -1,0 +1,4 @@
+{
+    "command": "npm run test",
+    "working_directory": "/home/kavia/workspace/code-generation/smart-parking-reservation-system-179315-179324/firebase_backend_functions"
+}
